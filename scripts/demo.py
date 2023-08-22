@@ -1,7 +1,7 @@
 from huggingface_hub import hf_hub_download
 import torch
 import os
-from open_flamingo import create_model_and_transforms
+from open_flamingo.factory import create_model_and_transforms
 from accelerate import Accelerator
 from einops import repeat
 from PIL import Image
@@ -19,7 +19,8 @@ def main():
     print('Loading model..')
 
     # >>> add your local path to Llama-7B (v1) model here:
-    llama_path = '../models/llama-7b-hf'
+    llama_path = '/public_bme/data/llm/llama-7b'
+    vision_path= '/public_bme/data/pretrain/clip/ViT-L-14.pt'
     if not os.path.exists(llama_path):
         raise ValueError('Llama model not yet set up, please check README for instructions!')
 
@@ -27,12 +28,14 @@ def main():
         clip_vision_encoder_path="ViT-L-14",
         clip_vision_encoder_pretrained="openai",
         lang_encoder_path=llama_path,
+        use_local_files=True,
         tokenizer_path=llama_path,
         cross_attn_every_n_layers=4
     )
     # load med-flamingo checkpoint:
-    checkpoint_path = hf_hub_download("med-flamingo/med-flamingo", "model.pt")
-    print(f'Downloaded Med-Flamingo checkpoint to {checkpoint_path}')
+    # checkpoint_path = hf_hub_download("med-flamingo/med-flamingo", "model.pt")
+    checkpoint_path="/public_bme/data/pretrain/med-flamingo/model.pt"
+    print(f'Load Med-Flamingo checkpoint from {checkpoint_path}')
     model.load_state_dict(torch.load(checkpoint_path, map_location=device), strict=False)
     processor = FlamingoProcessor(tokenizer, image_processor)
 
