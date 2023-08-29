@@ -47,15 +47,15 @@ def create_model_and_transforms(
     # set the vision encoder to output the visual features
     vision_encoder.visual.output_tokens = True
 
-    # text_tokenizer = AutoTokenizer.from_pretrained(
-    #     tokenizer_path,
-    #     local_files_only=use_local_files,
-    #     trust_remote_code=True,
-    #     cache_dir=cache_dir,
-    # )
-    text_tokenizer = LlamaTokenizer.from_pretrained(
+    text_tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_path,
+        local_files_only=use_local_files,
+        trust_remote_code=True,
+        cache_dir=cache_dir,
     )
+    # text_tokenizer = LlamaTokenizer.from_pretrained(
+    #     tokenizer_path,
+    # )
     # add Flamingo special tokens to the tokenizer
     text_tokenizer.add_special_tokens(
         {"additional_special_tokens": ["<|endofchunk|>", "<image>"]}

@@ -162,7 +162,7 @@ class MaskedCrossAttention(nn.Module):
         Args:
             x (torch.Tensor): text features
                 shape (B, T_txt, D_txt)
-            media (torch.Tensor): image features
+            media (torch.Tensor): image features (actually the perceiver latents)
                 shape (B, T_img, n, D_img) where n is the dim of the latents
             media_locations: boolean mask identifying the media tokens in x
                 shape (B, T_txt)
@@ -176,24 +176,33 @@ class MaskedCrossAttention(nn.Module):
             assert (
                 media_locations.shape[1] == x.shape[1]
             ), f"media_location.shape is {media_locations.shape} but x.shape is {x.shape}"
-
+        # during inference, when num_beam = 3
+        # x.shape=[3,22,1024]
+        # media.shape=[3,3,64,1024]
         T_txt = x.shape[1]
         _, T_img, n = media.shape[:3]
         h = self.heads
 
         x = self.norm(x)
-
+        # x.shape=[3,22,512]
+        # q.shape=[3,22,1024]
         q = self.to_q(x)
+        # media.shape=[3,192,1024]
         media = rearrange(media, "b t n d -> b (t n) d")
-
+        # k/v.shape=[3, 192, 512]
         k, v = self.to_kv(media).chunk(2, dim=-1)
+        # q.shape=[3, 8, 22, 64]
+        # k/v.shape=[3, 8, 192, 64]
+        # multi-head attention
         q, k, v = rearrange_many((q, k, v), "b n (h d) -> b h n d", h=h)
-
+        
         q = q * self.scale
-
+        # sim.shape=[3,8,22,192]=[3, num_head, num_text_token, channel*num_image_patch]
+        # num_head=8
         sim = einsum("... i d, ... j d -> ... i j", q, k)
 
         if exists(media_locations):
+            # T_img=3, media_time=[1,2,3]
             media_time = torch.arange(T_img, device=x.device) + 1
 
             if use_cached_media:
@@ -205,16 +214,20 @@ class MaskedCrossAttention(nn.Module):
                 )
             else:
                 # at each boolean of True, increment the time counter (relative to media time)
+                # text_time.shape=[3, 22]
+                # 生成了3行一模一样的[0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3]
                 text_time = media_locations.cumsum(dim=-1)
 
             # text time must equal media time if only attending to most immediate image
             # otherwise, as long as text time is greater than media time (if attending to all previous images / media)
             mask_op = torch.eq if self.only_attend_immediate_media else torch.ge
-
+            # n: the number of patches
+            # text_to_media_mask.shape=[3,1,22,192]
             text_to_media_mask = mask_op(
                 rearrange(text_time, "b i -> b 1 i 1"),
                 repeat(media_time, "j -> 1 1 1 (j n)", n=n),
             )
+            # sim.shape=[3,8,22,192]
             sim = sim.masked_fill(~text_to_media_mask, -torch.finfo(sim.dtype).max)
 
         sim = sim - sim.amax(dim=-1, keepdim=True).detach()
