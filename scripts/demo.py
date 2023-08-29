@@ -1,6 +1,7 @@
 from huggingface_hub import hf_hub_download
 import torch
 import os
+from transformers import GenerationConfig
 from open_flamingo.factory import create_model_and_transforms
 from accelerate import Accelerator
 from einops import repeat
@@ -54,7 +55,7 @@ def main():
     """
 
     # example few-shot prompt:
-    prompt = "You are a helpful medical assistant. You are being provided with images, a question about the image and an answer. Follow the examples and answer the last question. <image>Question: What is/are the structure near/in the middle of the brain? Answer: pons.<|endofchunk|><image>Question: Is there evidence of a right apical pneumothorax on this chest x-ray? Answer: yes.<|endofchunk|><image>Question: Is/Are there air in the patient's peritoneal cavity? Answer: no.<|endofchunk|><image>Question: Does the heart appear enlarged? Answer: yes.<|endofchunk|><image>Question: What side are the infarcts located? Answer: bilateral.<|endofchunk|><image>Question: Which image modality is this? Answer: mr flair.<|endofchunk|><image>Question: Where is the largest mass located in the cerebellum? Answer:"
+    prompt = "You are a helpful medical assistant. You are being provided with images, a question about the image and an answer. Follow the examples and answer the last question. <image>Question: What is/are the structure near/in the middle of the brain? Answer: pons.<|endofchunk|><image>Question: Is there evidence of a right apical pneumothorax on this chest x-ray? Answer: yes.<|endofchunk|><image>Question: Is/Are there air in the patient's peritoneal cavity? Answer: no.<|endofchunk|><image>Question: Does the heart appear enlarged? Answer: yes.<|endofchunk|><image>Question: What side are the infarcts located? Answer: bilateral.<|endofchunk|><image>Question: Which image modality is this? Answer: mr flair.<|endofchunk|><image>Question: Write the finding of this Chest X-ray:"
 
     """
     Step 3: Preprocess data 
@@ -70,11 +71,17 @@ def main():
 
     # actually run few-shot prompt through model:
     print('Generate from multimodal few-shot prompt')
+    generation_config = GenerationConfig(
+            repetition_penalty=10., 
+            max_new_tokens=70, 
+
+        )
     generated_text = model.generate(
     vision_x=pixels.to(device),
     lang_x=tokenized_data["input_ids"].to(device),
     attention_mask=tokenized_data["attention_mask"].to(device),
-    max_new_tokens=10,
+    generation_config=generation_config
+    # max_new_tokens=80,
     )
     response = processor.tokenizer.decode(generated_text[0])
     response = clean_generation(response)

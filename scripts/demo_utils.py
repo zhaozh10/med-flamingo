@@ -19,6 +19,7 @@ def clean_generation(response):
     for some reason, the open-flamingo based model slightly changes the input prompt (e.g. prepends <unk>, an adds some spaces)
     """
     response=response.replace('<unk> ', '').strip()
-    return response.split("Answer: ")[-1]
+    response=response.split("Answer: ")[-1]
+    return response
     # return response.replace('<unk> ', '').strip()
 
