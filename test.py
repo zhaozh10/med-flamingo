@@ -60,7 +60,7 @@ tokenizer.padding_side = "left" # For generation padding tokens should be on the
 #     return_tensors="pt",
 # )
 lang_x = tokenizer(
-    ["<image><image>An image of two cats.<|endofchunk|><image>An image of"],
+    ["<image><image>Question: desribe this image. Answer : An image of two cats.<|endofchunk|><image>Question: desribe this image. Answer :"],
     return_tensors="pt",
 )
 
@@ -73,7 +73,13 @@ generated_text = model.generate(
     lang_x=lang_x["input_ids"],
     attention_mask=lang_x["attention_mask"],
     max_new_tokens=20,
-    num_beams=1,
+    num_beams=3,
 )
-
 print("Generated text: ", tokenizer.decode(generated_text[0]))
+
+# res=model.forward(
+#     vision_x=vision_x,
+#     lang_x=lang_x["input_ids"],
+#     attention_mask=lang_x["attention_mask"],
+# )
+

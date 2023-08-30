@@ -93,10 +93,10 @@ def create_model_and_transforms(
     lang_encoder.resize_token_embeddings(len(text_tokenizer))
 
     model = Flamingo(
-        vision_encoder,
-        lang_encoder,
-        text_tokenizer.encode("<|endofchunk|>")[-1],
-        text_tokenizer.encode("<image>")[-1],
+        vision_encoder=vision_encoder,
+        lang_encoder=lang_encoder,
+        eoc_token_id=text_tokenizer.encode("<|endofchunk|>")[-1],
+        media_token_id=text_tokenizer.encode("<image>")[-1],
         vis_dim=open_clip.get_model_config(clip_vision_encoder_path)["vision_cfg"][
             "width"
         ],

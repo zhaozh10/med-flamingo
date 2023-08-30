@@ -16,6 +16,7 @@ class FlamingoLayer(nn.Module):
         self.decoder_layer = decoder_layer
         self.vis_x = None
         self.media_locations = None
+        self.chunk_locations = None
         if self.gated_cross_attn_layer is not None:
             self.gated_cross_attn_layer._use_gradient_checkpointing = (
                 gradient_checkpointing
@@ -32,6 +33,9 @@ class FlamingoLayer(nn.Module):
 
     def condition_media_locations(self, media_locations):
         self.media_locations = media_locations
+
+    def condition_chunk_locations(self, chunk_locations):
+        self.chunk_locations = chunk_locations
 
     def condition_use_cached_media(self, use_cached_media):
         self.use_cached_media = use_cached_media
@@ -56,6 +60,7 @@ class FlamingoLayer(nn.Module):
                 lang_x,
                 self.vis_x,
                 media_locations=self.media_locations,
+                chunk_locations=self.chunk_locations,
                 use_cached_media=self.use_cached_media,
             )
 
@@ -83,6 +88,7 @@ class FlamingoLMMixin(nn.Module):
     def init_flamingo(
         self,
         media_token_id,
+        eoc_token_id,
         lang_hidden_size,
         vis_hidden_size,
         cross_attn_every_n_layers,
@@ -104,6 +110,7 @@ class FlamingoLMMixin(nn.Module):
         )
         self.init_flamingo_layers(gradient_checkpointing)
         self.media_token_id = media_token_id
+        self.eoc_token_id= eoc_token_id
         self.initialized_flamingo = True
         self._use_cached_vision_x = False
 
@@ -133,6 +140,7 @@ class FlamingoLMMixin(nn.Module):
             )
 
         media_locations = input_ids == self.media_token_id
+        chunk_locations = input_ids == self.eoc_token_id
 
         # if there are media already cached and we're generating and there are no media tokens in the input,
         # we'll assume that ALL input tokens should attend to the last previous media that is cached.
@@ -146,8 +154,10 @@ class FlamingoLMMixin(nn.Module):
         )
 
         for layer in self._get_decoder_layers():
+            # init media_locations and chunk_locations if [do not use cached vision x] or [media_location and vision_x haven't been conditioned] or [current input has any media tokens]
             if not use_cached_media_locations:
                 layer.condition_media_locations(media_locations)
+                layer.condition_chunk_locations(chunk_locations)
             layer.condition_use_cached_media(use_cached_media_locations)
 
         # package arguments for the other parent's forward. since we don't know the order of the arguments,

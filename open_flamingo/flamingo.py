@@ -49,6 +49,7 @@ class Flamingo(nn.Module):
         self.lang_encoder = lang_encoder
         self.lang_encoder.init_flamingo(
             media_token_id=media_token_id,
+            eoc_token_id=eoc_token_id,
             lang_hidden_size=self.lang_dim,
             vis_hidden_size=self.vis_dim,
             cross_attn_every_n_layers=cross_attn_every_n_layers,
@@ -107,6 +108,7 @@ class Flamingo(nn.Module):
             # Case: do not use caching (i.e. this is a standard forward pass);
             self._encode_vision_x(vision_x=vision_x)
             self._condition_media_locations(input_ids=lang_x)
+            self._condition_chunk_locations(input_ids=lang_x)
 
         output = self.lang_encoder(
             input_ids=lang_x,
@@ -159,6 +161,7 @@ class Flamingo(nn.Module):
             vision_x = vision_x.repeat_interleave(num_beams, dim=0)
 
         self.lang_encoder._use_cached_vision_x = True
+        # feed images to vision encoder and condition vision_x embeddings for each decoder_layer 
         self._encode_vision_x(vision_x=vision_x)
 
         eos_token_id = kwargs.pop("eos_token_id", self.eoc_token_id)
@@ -312,6 +315,19 @@ class Flamingo(nn.Module):
         for layer in self.lang_encoder._get_decoder_layers():
             layer.condition_media_locations(media_locations)
 
+    def _condition_chunk_locations(self, input_ids: torch.Tensor):
+        """
+        Compute the media token locations from lang_x and condition the language model on these.
+        Args:
+            input_ids (torch.Tensor): Language input
+                shape (B, T_txt)
+        """
+        chunk_locations = input_ids == self.eoc_token_id
+
+        for layer in self.lang_encoder._get_decoder_layers():
+            layer.condition_chunk_locations(chunk_locations)
+
+
     def cache_media(self, input_ids: torch.Tensor, vision_x: torch.Tensor):
         """
         Pre-cache a prompt/sequence of images / text for log-likelihood evaluations.
@@ -328,6 +344,7 @@ class Flamingo(nn.Module):
         """
         self._encode_vision_x(vision_x=vision_x)
         self._condition_media_locations(input_ids=input_ids)
+        self._condition_chunk_locations(input_ids=input_ids)
         self.lang_encoder._use_cached_vision_x = True
 
     def uncache_media(self):
