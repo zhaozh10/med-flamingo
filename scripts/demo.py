@@ -9,7 +9,7 @@ from PIL import Image
 import sys
 sys.path.append('..')
 from src.utils import FlamingoProcessor
-from demo_utils import image_paths, clean_generation
+from demo_utils import image_paths, clean_generation,few_shot_prompt
 
 
 def main():
@@ -55,8 +55,8 @@ def main():
     """
 
     # example few-shot prompt:
-    prompt = "You are a helpful medical assistant. You are being provided with images, a question about the image and an answer. Follow the examples and answer the last question. <image>Question: What is/are the structure near/in the middle of the brain? Answer: pons.<|endofchunk|><image>Question: Is there evidence of a right apical pneumothorax on this chest x-ray? Answer: yes.<|endofchunk|><image>Question: Is/Are there air in the patient's peritoneal cavity? Answer: no.<|endofchunk|><image>Question: Does the heart appear enlarged? Answer: yes.<|endofchunk|><image>Question: What side are the infarcts located? Answer: bilateral.<|endofchunk|><image>Question: Which image modality is this? Answer: mr flair.<|endofchunk|><image>Question: Write the finding of this Chest X-ray:"
-
+    # prompt = "You are a helpful medical assistant. You are being provided with images, a question about the image and an answer. Follow the examples and answer the last question. <image>Question: What is/are the structure near/in the middle of the brain? Answer: pons.<|endofchunk|><image>Question: Is there evidence of a right apical pneumothorax on this chest x-ray? Answer: yes.<|endofchunk|><image>Question: Is/Are there air in the patient's peritoneal cavity? Answer: no.<|endofchunk|><image>Question: Does the heart appear enlarged? Answer: yes.<|endofchunk|><image>Question: What side are the infarcts located? Answer: bilateral.<|endofchunk|><image>Question: Which image modality is this? Answer: mr flair.<|endofchunk|><image>Question: Write the finding of this Chest X-ray:"
+    prompt=few_shot_prompt
     """
     Step 3: Preprocess data 
     """
@@ -73,7 +73,7 @@ def main():
     print('Generate from multimodal few-shot prompt')
     generation_config = GenerationConfig(
             repetition_penalty=10., 
-            max_new_tokens=70, 
+            max_new_tokens=20, 
 
         )
     generated_text = model.generate(
@@ -81,7 +81,6 @@ def main():
     lang_x=tokenized_data["input_ids"].to(device),
     attention_mask=tokenized_data["attention_mask"].to(device),
     generation_config=generation_config
-    # max_new_tokens=80,
     )
     response = processor.tokenizer.decode(generated_text[0])
     response = clean_generation(response)
